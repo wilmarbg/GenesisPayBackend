@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  # ---- API Gateway ----
+  # Único punto de entrada. La app Flutter solo conoce el puerto 8080.
+  # Nginx lee la URL y reenvía al microservicio correcto.
+  gateway:
+    image: nginx:alpine
+    ports:
+      - "8080:8080" # El único puerto expuesto al exterior
+    volumes:
+      - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - auth-service
+      - clients-service
+      - merchants-service
+      - payments-service
+    restart: unless-stopped
+
+  # ---- Auth Service (:8001) ----
+  # Si este se cae: no se puede hacer login ni registro.
+  # Pero los usuarios que ya tienen token siguen comprando normalmente.
+  auth-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.auth
+    env_file: .env
+    expose:
+      - "8001" # Solo visible dentro de Docker, no al exterior
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  # ---- Clients Service (:8002) ----
+  # Si este se cae: no se pueden gestionar clientes.
+  # Pero comercios, pagos y auth siguen funcionando.
+  clients-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.clients
+    env_file: .env
+    expose:
+      - "8002"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  # ---- Merchants Service (:8003) ----
+  # Si este se cae: no se puede ver el catálogo.
+  # Pero auth, clientes y pagos ya hechos siguen disponibles.
+  merchants-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.merchants
+    env_file: .env
+    expose:
+      - "8003"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  # ---- Payments Service (:8004) ----
+  # Si este se cae: no se pueden hacer compras.
+  # Pero el catálogo, gestión de clientes y auth siguen operando.
+  payments-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.payments
+    env_file: .env
+    expose:
+      - "8004"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+# NOTAS:
+# - NO se incluye PostgreSQL (ya está instalado nativo en el servidor Linux)
+# - En el .env usar DB_HOST=172.17.0.1 (IP del host desde Docker en Linux)
+# - "expose" = visible solo entre contenedores Docker
+# - "ports" = visible desde fuera (solo gateway lo necesita)
+# - restart: unless-stopped = Docker reinicia automáticamente si se cae

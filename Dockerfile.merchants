@@ -1,0 +1,15 @@
+# Stage 1 (build)
+FROM golang:1.23-alpine AS builder
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+# CGO_ENABLED=0 = compilación estática, no depende de librerías del OS
+RUN CGO_ENABLED=0 go build -o server ./cmd/merchants/main.go
+
+# Stage 2 (runtime)
+FROM alpine:3.19
+COPY --from=builder /app/server /app/server
+EXPOSE 8003
+# Multi-stage reduce la imagen de ~1GB a ~15MB
+CMD ["/app/server"]
