@@ -35,7 +35,7 @@ Flutter App → Nginx (Puerto 8080 - API Gateway)
 
 1. Clonar el repositorio:
    ```bash
-   git clone <url-del-repositorio>
+   git clone https://github.com/wilmarbg/GenesisPayBackend.git
    cd GenesisPayBackend
    ```
 2. Descargar dependencias:
